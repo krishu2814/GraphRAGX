@@ -4,14 +4,14 @@ Enterprise-grade Hybrid Knowledge Graph and Vector RAG system designed for compl
 
 ---
 
-## Project Status: Lesson 2 Completed
+## Project Status: Lesson 3 Completed
 
 The project is built incrementally across 16 focused lessons for clean git history and progress tracking. Comprehensive documentation for each lesson is stored in the [`docs/`](docs/) directory.
 
 ### Progress Tracker
 - [x] [**Lesson 1: Project Setup, Configuration & Foundational Domain Models**](docs/lessons/01_project_setup_and_domain_models.md)
 - [x] [**Lesson 2: Enterprise Knowledge Base & Document Corpus**](docs/lessons/02_enterprise_knowledge_base.md)
-- [ ] **Lesson 3: Document Loading, Semantic Chunking & Metadata Extraction**
+- [x] [**Lesson 3: Document Loading, Semantic Chunking & Metadata Extraction**](docs/lessons/03_document_loading_chunking_metadata.md)
 - [ ] **Lesson 4: Knowledge Extraction — Structured Entities & Relationships**
 - [ ] **Lesson 5: Dual Graph Storage Engine (Neo4j + In-Memory NetworkX)**
 - [ ] **Lesson 6: Graph Builder & Idempotent Ingestion Pipeline**
@@ -34,21 +34,27 @@ The project is built incrementally across 16 focused lessons for clean git histo
 GraphRAGX/
 ├── app/
 │   ├── config.py              # Pydantic Settings (Neo4j, Qdrant, OpenAI, RRF weights)
-│   └── models/                # Strongly-typed domain models
-│       ├── entities.py        # Entity, EntityType, CanonicalEntity
-│       ├── relationships.py   # Relationship, RelationType, Evidence
-│       ├── retrieval.py       # RetrievedChunk, GraphFact, RetrievalPath, FusionResult
-│       ├── query.py           # QueryIntent, RetrievalPlan, LinkedEntity
-│       └── responses.py       # QueryResponse, Citation, ComparisonResult
+│   ├── models/                # Strongly-typed domain models
+│   │   ├── entities.py        # Entity, EntityType, CanonicalEntity
+│   │   ├── relationships.py   # Relationship, RelationType, Evidence
+│   │   ├── retrieval.py       # RetrievedChunk, GraphFact, RetrievalPath, FusionResult
+│   │   ├── query.py           # QueryIntent, RetrievalPlan, LinkedEntity
+│   │   └── responses.py       # QueryResponse, Citation, ComparisonResult
+│   └── ingestion/             # Ingestion & document processing
+│       ├── loaders.py         # MarkdownLoader & section hierarchy parsing
+│       ├── metadata.py        # MetadataEnricher & entity hint detection
+│       └── chunker.py         # Structure-aware SemanticChunker
 ├── data/
 │   └── documents/             # 20 interconnected enterprise markdown documents
 ├── docs/                      # Technical documentation
 │   └── lessons/
 │       ├── 01_project_setup_and_domain_models.md
-│       └── 02_enterprise_knowledge_base.md
+│       ├── 02_enterprise_knowledge_base.md
+│       └── 03_document_loading_chunking_metadata.md
 ├── tests/
 │   ├── test_config_and_models.py # Unit tests (11 tests)
-│   └── test_documents.py         # Corpus validation tests (3 tests)
+│   ├── test_documents.py         # Corpus validation tests (3 tests)
+│   └── test_chunking.py          # Loader & chunker tests (8 tests)
 ├── .env.example               # Environment variables template
 ├── requirements.txt           # Python dependencies
 └── README.md                  # Project overview and roadmap
@@ -70,4 +76,4 @@ pip install -r requirements.txt
 pytest tests/ -v
 ```
 
-See [Lesson 01](docs/lessons/01_project_setup_and_domain_models.md) and [Lesson 02](docs/lessons/02_enterprise_knowledge_base.md) for technical deep-dives into the architecture.
+See [Lesson 01](docs/lessons/01_project_setup_and_domain_models.md), [Lesson 02](docs/lessons/02_enterprise_knowledge_base.md), and [Lesson 03](docs/lessons/03_document_loading_chunking_metadata.md) for technical deep-dives into each milestone.
