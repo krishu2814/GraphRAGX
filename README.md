@@ -4,7 +4,7 @@ Enterprise-grade Hybrid Knowledge Graph and Vector RAG system designed for compl
 
 ---
 
-## Project Status: Lesson 3 Completed
+## Project Status: Lesson 4 Completed
 
 The project is built incrementally across 16 focused lessons for clean git history and progress tracking. Comprehensive documentation for each lesson is stored in the [`docs/`](docs/) directory.
 
@@ -12,7 +12,7 @@ The project is built incrementally across 16 focused lessons for clean git histo
 - [x] [**Lesson 1: Project Setup, Configuration & Foundational Domain Models**](docs/lessons/01_project_setup_and_domain_models.md)
 - [x] [**Lesson 2: Enterprise Knowledge Base & Document Corpus**](docs/lessons/02_enterprise_knowledge_base.md)
 - [x] [**Lesson 3: Document Loading, Semantic Chunking & Metadata Extraction**](docs/lessons/03_document_loading_chunking_metadata.md)
-- [ ] **Lesson 4: Knowledge Extraction — Structured Entities & Relationships**
+- [x] [**Lesson 4: Knowledge Extraction — Structured Entities & Relationships**](docs/lessons/04_knowledge_extraction_entities_relations.md)
 - [ ] **Lesson 5: Dual Graph Storage Engine (Neo4j + In-Memory NetworkX)**
 - [ ] **Lesson 6: Graph Builder & Idempotent Ingestion Pipeline**
 - [ ] **Lesson 7: Vector Storage & Dense Semantic Retrieval**
@@ -40,21 +40,26 @@ GraphRAGX/
 │   │   ├── retrieval.py       # RetrievedChunk, GraphFact, RetrievalPath, FusionResult
 │   │   ├── query.py           # QueryIntent, RetrievalPlan, LinkedEntity
 │   │   └── responses.py       # QueryResponse, Citation, ComparisonResult
-│   └── ingestion/             # Ingestion & document processing
+│   └── ingestion/             # Ingestion, Extraction & Canonicalization
 │       ├── loaders.py         # MarkdownLoader & section hierarchy parsing
 │       ├── metadata.py        # MetadataEnricher & entity hint detection
-│       └── chunker.py         # Structure-aware SemanticChunker
+│       ├── chunker.py         # Structure-aware SemanticChunker
+│       ├── entity_extractor.py   # Dual LLM & rule-based EntityExtractor
+│       ├── relation_extractor.py # Grounded RelationExtractor with evidence quotes
+│       └── entity_resolution.py  # Canonicalization & alias deduplication
 ├── data/
 │   └── documents/             # 20 interconnected enterprise markdown documents
 ├── docs/                      # Technical documentation
 │   └── lessons/
 │       ├── 01_project_setup_and_domain_models.md
 │       ├── 02_enterprise_knowledge_base.md
-│       └── 03_document_loading_chunking_metadata.md
+│       ├── 03_document_loading_chunking_metadata.md
+│       └── 04_knowledge_extraction_entities_relations.md
 ├── tests/
 │   ├── test_config_and_models.py # Unit tests (11 tests)
 │   ├── test_documents.py         # Corpus validation tests (3 tests)
-│   └── test_chunking.py          # Loader & chunker tests (8 tests)
+│   ├── test_chunking.py          # Loader & chunker tests (8 tests)
+│   └── test_extraction_and_resolution.py # Extractor & resolver tests (5 tests)
 ├── .env.example               # Environment variables template
 ├── requirements.txt           # Python dependencies
 └── README.md                  # Project overview and roadmap
@@ -76,4 +81,4 @@ pip install -r requirements.txt
 pytest tests/ -v
 ```
 
-See [Lesson 01](docs/lessons/01_project_setup_and_domain_models.md), [Lesson 02](docs/lessons/02_enterprise_knowledge_base.md), and [Lesson 03](docs/lessons/03_document_loading_chunking_metadata.md) for technical deep-dives into each milestone.
+See [docs/lessons/](docs/lessons/) for technical deep-dives into each milestone.
