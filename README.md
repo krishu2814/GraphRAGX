@@ -4,13 +4,13 @@ Enterprise-grade Hybrid Knowledge Graph and Vector RAG system designed for compl
 
 ---
 
-## Project Status: Lesson 1 Completed
+## Project Status: Lesson 2 Completed
 
 The project is built incrementally across 16 focused lessons for clean git history and progress tracking. Comprehensive documentation for each lesson is stored in the [`docs/`](docs/) directory.
 
 ### Progress Tracker
 - [x] [**Lesson 1: Project Setup, Configuration & Foundational Domain Models**](docs/lessons/01_project_setup_and_domain_models.md)
-- [ ] **Lesson 2: Enterprise Knowledge Base & Document Corpus**
+- [x] [**Lesson 2: Enterprise Knowledge Base & Document Corpus**](docs/lessons/02_enterprise_knowledge_base.md)
 - [ ] **Lesson 3: Document Loading, Semantic Chunking & Metadata Extraction**
 - [ ] **Lesson 4: Knowledge Extraction — Structured Entities & Relationships**
 - [ ] **Lesson 5: Dual Graph Storage Engine (Neo4j + In-Memory NetworkX)**
@@ -28,7 +28,7 @@ The project is built incrementally across 16 focused lessons for clean git histo
 
 ---
 
-## Current Architecture: Foundational Domain Models (Lesson 1)
+## Current Architecture
 
 ```
 GraphRAGX/
@@ -40,11 +40,15 @@ GraphRAGX/
 │       ├── retrieval.py       # RetrievedChunk, GraphFact, RetrievalPath, FusionResult
 │       ├── query.py           # QueryIntent, RetrievalPlan, LinkedEntity
 │       └── responses.py       # QueryResponse, Citation, ComparisonResult
-├── docs/                      # Dedicated project documentation
+├── data/
+│   └── documents/             # 20 interconnected enterprise markdown documents
+├── docs/                      # Technical documentation
 │   └── lessons/
-│       └── 01_project_setup_and_domain_models.md
+│       ├── 01_project_setup_and_domain_models.md
+│       └── 02_enterprise_knowledge_base.md
 ├── tests/
-│   └── test_config_and_models.py # Unit test suite (11 tests)
+│   ├── test_config_and_models.py # Unit tests (11 tests)
+│   └── test_documents.py         # Corpus validation tests (3 tests)
 ├── .env.example               # Environment variables template
 ├── requirements.txt           # Python dependencies
 └── README.md                  # Project overview and roadmap
@@ -55,23 +59,15 @@ GraphRAGX/
 ## Getting Started
 
 ### 1. Environment Setup
-Create and activate your virtual environment, then install dependencies:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2. Configuration
-Copy the example environment file:
-```bash
-cp .env.example .env
-```
-*(By default, `USE_IN_MEMORY_GRAPH=true` and `USE_IN_MEMORY_VECTOR=true` allow running fully offline without external services).*
-
-### 3. Run Verification Tests
+### 2. Run Verification Tests
 ```bash
 pytest tests/ -v
 ```
 
-For full technical details of the domain models and configuration system, see [Lesson 01 Documentation](docs/lessons/01_project_setup_and_domain_models.md).
+See [Lesson 01](docs/lessons/01_project_setup_and_domain_models.md) and [Lesson 02](docs/lessons/02_enterprise_knowledge_base.md) for technical deep-dives into the architecture.
