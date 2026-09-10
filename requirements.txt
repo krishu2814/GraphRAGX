@@ -1,0 +1,24 @@
+# Core Settings & Validation
+pydantic>=2.7.0
+pydantic-settings>=2.2.0
+python-dotenv>=1.0.0
+
+# Graph Storage & In-Memory Graphs
+networkx>=3.2.1
+neo4j>=5.18.0
+
+# Vector Storage & Search
+qdrant-client>=1.8.0
+
+# API & Web Interface
+fastapi>=0.110.0
+uvicorn>=0.28.0
+httpx>=0.27.0
+streamlit>=1.32.0
+
+# LLM & Embeddings
+openai>=1.14.0
+
+# Testing & Quality
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
