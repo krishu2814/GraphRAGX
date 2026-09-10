@@ -4,7 +4,7 @@ Enterprise-grade Hybrid Knowledge Graph and Vector RAG system designed for compl
 
 ---
 
-## Project Status: Lesson 4 Completed
+## Project Status: Lesson 5 Completed
 
 The project is built incrementally across 16 focused lessons for clean git history and progress tracking. Comprehensive documentation for each lesson is stored in the [`docs/`](docs/) directory.
 
@@ -13,7 +13,7 @@ The project is built incrementally across 16 focused lessons for clean git histo
 - [x] [**Lesson 2: Enterprise Knowledge Base & Document Corpus**](docs/lessons/02_enterprise_knowledge_base.md)
 - [x] [**Lesson 3: Document Loading, Semantic Chunking & Metadata Extraction**](docs/lessons/03_document_loading_chunking_metadata.md)
 - [x] [**Lesson 4: Knowledge Extraction — Structured Entities & Relationships**](docs/lessons/04_knowledge_extraction_entities_relations.md)
-- [ ] **Lesson 5: Dual Graph Storage Engine (Neo4j + In-Memory NetworkX)**
+- [x] [**Lesson 5: Dual Graph Storage Engine (Neo4j + In-Memory NetworkX)**](docs/lessons/05_dual_graph_storage_engine.md)
 - [ ] **Lesson 6: Graph Builder & Idempotent Ingestion Pipeline**
 - [ ] **Lesson 7: Vector Storage & Dense Semantic Retrieval**
 - [ ] **Lesson 8: Graph Traversal & Multi-Hop Path Retrieval**
@@ -40,13 +40,17 @@ GraphRAGX/
 │   │   ├── retrieval.py       # RetrievedChunk, GraphFact, RetrievalPath, FusionResult
 │   │   ├── query.py           # QueryIntent, RetrievalPlan, LinkedEntity
 │   │   └── responses.py       # QueryResponse, Citation, ComparisonResult
-│   └── ingestion/             # Ingestion, Extraction & Canonicalization
-│       ├── loaders.py         # MarkdownLoader & section hierarchy parsing
-│       ├── metadata.py        # MetadataEnricher & entity hint detection
-│       ├── chunker.py         # Structure-aware SemanticChunker
-│       ├── entity_extractor.py   # Dual LLM & rule-based EntityExtractor
-│       ├── relation_extractor.py # Grounded RelationExtractor with evidence quotes
-│       └── entity_resolution.py  # Canonicalization & alias deduplication
+│   ├── ingestion/             # Ingestion, Extraction & Canonicalization
+│   │   ├── loaders.py         # MarkdownLoader & section hierarchy parsing
+│   │   ├── metadata.py        # MetadataEnricher & entity hint detection
+│   │   ├── chunker.py         # Structure-aware SemanticChunker
+│   │   ├── entity_extractor.py   # Dual LLM & rule-based EntityExtractor
+│   │   ├── relation_extractor.py # Grounded RelationExtractor with evidence quotes
+│   │   └── entity_resolution.py  # Canonicalization & alias deduplication
+│   └── graph/                 # Dual Graph Storage Engine
+│       ├── schema.py          # Labels, constraints, and indexes
+│       ├── cypher_queries.py  # Parameterized Cypher catalog
+│       └── neo4j_client.py    # GraphClient protocol, NetworkX & Neo4j drivers
 ├── data/
 │   └── documents/             # 20 interconnected enterprise markdown documents
 ├── docs/                      # Technical documentation
@@ -54,12 +58,14 @@ GraphRAGX/
 │       ├── 01_project_setup_and_domain_models.md
 │       ├── 02_enterprise_knowledge_base.md
 │       ├── 03_document_loading_chunking_metadata.md
-│       └── 04_knowledge_extraction_entities_relations.md
+│       ├── 04_knowledge_extraction_entities_relations.md
+│       └── 05_dual_graph_storage_engine.md
 ├── tests/
 │   ├── test_config_and_models.py # Unit tests (11 tests)
 │   ├── test_documents.py         # Corpus validation tests (3 tests)
 │   ├── test_chunking.py          # Loader & chunker tests (8 tests)
-│   └── test_extraction_and_resolution.py # Extractor & resolver tests (5 tests)
+│   ├── test_extraction_and_resolution.py # Extractor & resolver tests (5 tests)
+│   └── test_graph_engine.py      # Dual graph driver tests (9 tests)
 ├── .env.example               # Environment variables template
 ├── requirements.txt           # Python dependencies
 └── README.md                  # Project overview and roadmap
