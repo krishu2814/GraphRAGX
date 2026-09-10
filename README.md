@@ -4,7 +4,7 @@ Enterprise-grade Hybrid Knowledge Graph and Vector RAG system designed for compl
 
 ---
 
-## Project Status: Lesson 5 Completed
+## Project Status: Lesson 6 Completed
 
 The project is built incrementally across 16 focused lessons for clean git history and progress tracking. Comprehensive documentation for each lesson is stored in the [`docs/`](docs/) directory.
 
@@ -14,7 +14,7 @@ The project is built incrementally across 16 focused lessons for clean git histo
 - [x] [**Lesson 3: Document Loading, Semantic Chunking & Metadata Extraction**](docs/lessons/03_document_loading_chunking_metadata.md)
 - [x] [**Lesson 4: Knowledge Extraction — Structured Entities & Relationships**](docs/lessons/04_knowledge_extraction_entities_relations.md)
 - [x] [**Lesson 5: Dual Graph Storage Engine (Neo4j + In-Memory NetworkX)**](docs/lessons/05_dual_graph_storage_engine.md)
-- [ ] **Lesson 6: Graph Builder & Idempotent Ingestion Pipeline**
+- [x] [**Lesson 6: Graph Builder & Idempotent Ingestion Pipeline**](docs/lessons/06_graph_builder_ingestion_pipeline.md)
 - [ ] **Lesson 7: Vector Storage & Dense Semantic Retrieval**
 - [ ] **Lesson 8: Graph Traversal & Multi-Hop Path Retrieval**
 - [ ] **Lesson 9: Query Understanding, Intent Classification & Entity Linking**
@@ -40,13 +40,15 @@ GraphRAGX/
 │   │   ├── retrieval.py       # RetrievedChunk, GraphFact, RetrievalPath, FusionResult
 │   │   ├── query.py           # QueryIntent, RetrievalPlan, LinkedEntity
 │   │   └── responses.py       # QueryResponse, Citation, ComparisonResult
-│   ├── ingestion/             # Ingestion, Extraction & Canonicalization
+│   ├── ingestion/             # Ingestion, Extraction & Pipeline
 │   │   ├── loaders.py         # MarkdownLoader & section hierarchy parsing
 │   │   ├── metadata.py        # MetadataEnricher & entity hint detection
 │   │   ├── chunker.py         # Structure-aware SemanticChunker
 │   │   ├── entity_extractor.py   # Dual LLM & rule-based EntityExtractor
 │   │   ├── relation_extractor.py # Grounded RelationExtractor with evidence quotes
-│   │   └── entity_resolution.py  # Canonicalization & alias deduplication
+│   │   ├── entity_resolution.py  # Canonicalization & alias deduplication
+│   │   ├── graph_builder.py   # Idempotent GraphBuilder
+│   │   └── pipeline.py        # IngestionPipeline coordinator
 │   └── graph/                 # Dual Graph Storage Engine
 │       ├── schema.py          # Labels, constraints, and indexes
 │       ├── cypher_queries.py  # Parameterized Cypher catalog
@@ -59,13 +61,18 @@ GraphRAGX/
 │       ├── 02_enterprise_knowledge_base.md
 │       ├── 03_document_loading_chunking_metadata.md
 │       ├── 04_knowledge_extraction_entities_relations.md
-│       └── 05_dual_graph_storage_engine.md
+│       ├── 05_dual_graph_storage_engine.md
+│       └── 06_graph_builder_ingestion_pipeline.md
+├── scripts/
+│   ├── build_graph.py         # Schema initialization CLI
+│   └── ingest.py              # End-to-end ingestion runner CLI
 ├── tests/
 │   ├── test_config_and_models.py # Unit tests (11 tests)
 │   ├── test_documents.py         # Corpus validation tests (3 tests)
 │   ├── test_chunking.py          # Loader & chunker tests (8 tests)
 │   ├── test_extraction_and_resolution.py # Extractor & resolver tests (5 tests)
-│   └── test_graph_engine.py      # Dual graph driver tests (9 tests)
+│   ├── test_graph_engine.py      # Dual graph driver tests (9 tests)
+│   └── test_ingestion_pipeline.py # Pipeline integration tests (2 tests)
 ├── .env.example               # Environment variables template
 ├── requirements.txt           # Python dependencies
 └── README.md                  # Project overview and roadmap
@@ -82,7 +89,12 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2. Run Verification Tests
+### 2. Run End-to-End Ingestion CLI
+```bash
+python scripts/ingest.py --data-dir data/documents
+```
+
+### 3. Run Verification Tests
 ```bash
 pytest tests/ -v
 ```
