@@ -8,8 +8,8 @@ from app.ingestion.entity_extractor import EntityExtractor
 from app.ingestion.entity_resolution import EntityResolver
 from app.ingestion.loaders import MarkdownLoader
 from app.ingestion.relation_extractor import RelationExtractor
-from app.models.entities import Entity, EntityType
-from app.models.relationships import RelationType
+from app.models.entities import CanonicalEntity, Entity, EntityType
+from app.models.relationships import Evidence, Relationship, RelationType
 
 DOCUMENTS_DIR = Path(__file__).parent.parent / "data" / "documents"
 
@@ -136,6 +136,32 @@ class TestEntityResolver:
             assert r.source_id.startswith("entity:")
             assert r.target_id.startswith("entity:")
             assert r.source_id != r.target_id
+
+    def test_slug_and_hyphenated_remapping(self):
+        resolver = EntityResolver()
+
+        # Canonical entity with hyphenated name and 3-part ID
+        ce = CanonicalEntity(
+            canonical_id="entity:incident:inc_402",
+            canonical_name="INC-402",
+            primary_type=EntityType.INCIDENT,
+            aliases=["Incident 402"],
+        )
+
+        # Raw relationship referencing slug ID entity:inc_402
+        rel = Relationship(
+            id="rel_temp",
+            source_id="entity:customer:acme_corp",
+            target_id="entity:inc_402",
+            type=RelationType.AFFECTS,
+            description="Acme was affected by INC-402",
+            weight=1.0,
+            evidence=[Evidence(chunk_id="c1", document_id="d1", text="Acme Corp affected by INC-402.")],
+        )
+
+        resolved = resolver.resolve_relationships([rel], [ce])
+        assert len(resolved) == 1
+        assert resolved[0].target_id == "entity:incident:inc_402"
 
 
 class TestEndToEndKnowledgeExtraction:

@@ -81,7 +81,7 @@ GraphRAGX/
 │   ├── test_config_and_models.py # Unit tests (11 tests)
 │   ├── test_documents.py         # Corpus validation tests (3 tests)
 │   ├── test_chunking.py          # Loader & chunker tests (8 tests)
-│   ├── test_extraction_and_resolution.py # Extractor & resolver tests (5 tests)
+│   ├── test_extraction_and_resolution.py # Extractor & resolver tests (6 tests)
 │   ├── test_graph_engine.py      # Dual graph driver tests (9 tests)
 │   ├── test_graph_traversal.py   # Traversal & multi-hop tests (10 tests)
 │   ├── test_ingestion_pipeline.py # Pipeline integration tests (2 tests)
@@ -117,7 +117,7 @@ python scripts/search_vector.py --query "OAuth 2.1 breaking changes" --top-k 3
 python scripts/traverse_graph.py --entity "Acme Corp" --max-hops 2
 ```
 
-### 5. Run Verification Tests (61 Tests)
+### 5. Run Verification Tests (62 Tests)
 ```bash
 pytest tests/ -v
 ```

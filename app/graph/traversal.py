@@ -1,6 +1,7 @@
 """Graph traversal engine for multi-hop path and relational fact discovery."""
 
 from collections import deque
+import json
 import logging
 from typing import Any
 
@@ -29,7 +30,7 @@ class GraphTraverser:
             return []
 
         start_id = ent["id"]
-        start_name = ent.get("name", start_id)
+        start_name = ent.get("name") or start_id
 
         # BFS Queue item: (current_id, current_name, entities_list, relations_list, evidence_chunk_ids)
         queue = deque([(start_id, start_name, [start_name], [], [])])
@@ -49,7 +50,7 @@ class GraphTraverser:
                         length=hop_count,
                         score=score,
                         evidence_chunk_ids=evidence_chunks,
-                        explanation=" -> ".join(entities_path),
+                        explanation=" -> ".join(str(e) for e in entities_path),
                     )
                 )
 
@@ -65,8 +66,8 @@ class GraphTraverser:
                     continue
 
                 target_id = neighbor["target_id"]
-                target_name = neighbor.get("target_name", target_id)
-                relation = neighbor.get("relation", "RELATED_TO")
+                target_name = neighbor.get("target_name") or target_id
+                relation = neighbor.get("relation") or "RELATED_TO"
 
                 # Cycle prevention: don't revisit entities already in this path
                 if target_name in entities_path or target_id in entities_path:
@@ -74,7 +75,13 @@ class GraphTraverser:
 
                 # Collect evidence chunk IDs
                 new_evidence = list(evidence_chunks)
-                for ev in neighbor.get("evidence", []):
+                ev_items = neighbor.get("evidence", [])
+                if isinstance(ev_items, str):
+                    try:
+                        ev_items = json.loads(ev_items)
+                    except Exception:
+                        ev_items = []
+                for ev in ev_items:
                     chunk_id = ev.get("chunk_id") if isinstance(ev, dict) else getattr(ev, "chunk_id", None)
                     if chunk_id and chunk_id not in new_evidence:
                         new_evidence.append(chunk_id)

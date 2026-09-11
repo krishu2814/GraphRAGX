@@ -154,9 +154,13 @@ class NetworkXGraphDriver(GraphClient):
 
         # Ensure endpoints exist
         if rel.source_id not in self.graph:
-            self.graph.add_node(rel.source_id, label="Entity", id=rel.source_id, name=rel.source_id, type="OTHER")
+            name = rel.source_id.split(":")[-1].replace("_", " ").title()
+            self.graph.add_node(rel.source_id, label="Entity", id=rel.source_id, name=name, type="OTHER")
+            self.entity_lookup[name.lower()] = rel.source_id
         if rel.target_id not in self.graph:
-            self.graph.add_node(rel.target_id, label="Entity", id=rel.target_id, name=rel.target_id, type="OTHER")
+            name = rel.target_id.split(":")[-1].replace("_", " ").title()
+            self.graph.add_node(rel.target_id, label="Entity", id=rel.target_id, name=name, type="OTHER")
+            self.entity_lookup[name.lower()] = rel.target_id
 
         rel_type_str = rel.type.value
 
@@ -218,12 +222,12 @@ class NetworkXGraphDriver(GraphClient):
             tgt_node = self.graph.nodes.get(tgt, {})
             neighbors.append({
                 "source_id": resolved_id,
-                "source_name": ent.get("name", resolved_id),
+                "source_name": ent.get("name") or resolved_id,
                 "relation": data.get("relation", key),
                 "description": data.get("description", ""),
                 "evidence": data.get("evidence", []),
                 "target_id": tgt,
-                "target_name": tgt_node.get("name", tgt),
+                "target_name": tgt_node.get("name") or tgt,
                 "target_type": tgt_node.get("type", "OTHER"),
                 "direction": "OUTGOING",
             })
@@ -235,12 +239,12 @@ class NetworkXGraphDriver(GraphClient):
             src_node = self.graph.nodes.get(src, {})
             neighbors.append({
                 "source_id": src,
-                "source_name": src_node.get("name", src),
+                "source_name": src_node.get("name") or src,
                 "relation": data.get("relation", key),
                 "description": data.get("description", ""),
                 "evidence": data.get("evidence", []),
                 "target_id": resolved_id,
-                "target_name": ent.get("name", resolved_id),
+                "target_name": ent.get("name") or resolved_id,
                 "target_type": ent.get("type", "OTHER"),
                 "direction": "INCOMING",
             })
@@ -369,7 +373,19 @@ class Neo4jGraphDriver(GraphClient):
     def get_neighbors(self, entity_id: str, limit: int = 50) -> list[dict[str, Any]]:
         with self.driver.session(database=self.database) as session:
             res = session.run(GET_NEIGHBORS_1HOP, id=entity_id, limit=limit)
-            return [dict(r) for r in res]
+            results: list[dict[str, Any]] = []
+            for r in res:
+                item = dict(r)
+                ev = item.get("evidence")
+                if isinstance(ev, str):
+                    try:
+                        item["evidence"] = json.loads(ev)
+                    except Exception:
+                        item["evidence"] = []
+                elif not isinstance(ev, list):
+                    item["evidence"] = []
+                results.append(item)
+            return results
 
     def get_stats(self) -> dict[str, int]:
         with self.driver.session(database=self.database) as session:

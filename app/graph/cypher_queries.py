@@ -77,15 +77,36 @@ LIMIT 1
 """
 
 GET_NEIGHBORS_1HOP = """
-MATCH (s:Entity {id: $id})-[r]-(t:Entity)
-RETURN s.id AS source_id,
-       s.name AS source_name,
-       type(r) AS relation,
-       r.description AS description,
-       r.evidence AS evidence,
-       t.id AS target_id,
-       t.name AS target_name,
-       t.type AS target_type
+MATCH (n:Entity)
+WHERE n.id = $id OR toLower(n.name) = toLower($id)
+CALL {
+    WITH n
+    MATCH (n)-[r]->(t:Entity)
+    WHERE NOT type(r) IN ['PART_OF', 'MENTIONS']
+    RETURN n.id AS source_id,
+           coalesce(n.name, n.id) AS source_name,
+           type(r) AS relation,
+           coalesce(r.description, '') AS description,
+           coalesce(r.evidence, '[]') AS evidence,
+           t.id AS target_id,
+           coalesce(t.name, t.id) AS target_name,
+           coalesce(t.type, 'OTHER') AS target_type,
+           'OUTGOING' AS direction
+    UNION ALL
+    WITH n
+    MATCH (s:Entity)-[r]->(n)
+    WHERE NOT type(r) IN ['PART_OF', 'MENTIONS']
+    RETURN s.id AS source_id,
+           coalesce(s.name, s.id) AS source_name,
+           type(r) AS relation,
+           coalesce(r.description, '') AS description,
+           coalesce(r.evidence, '[]') AS evidence,
+           n.id AS target_id,
+           coalesce(n.name, n.id) AS target_name,
+           coalesce(n.type, 'OTHER') AS target_type,
+           'INCOMING' AS direction
+}
+RETURN source_id, source_name, relation, description, evidence, target_id, target_name, target_type, direction
 LIMIT $limit
 """
 

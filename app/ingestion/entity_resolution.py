@@ -240,12 +240,24 @@ class EntityResolver:
         name_to_id: dict[str, str] = {}
         if canonical_entities:
             for ce in canonical_entities:
-                name_to_id[ce.canonical_id] = ce.canonical_id
-                name_to_id[ce.canonical_name.lower()] = ce.canonical_id
-                for a in ce.aliases:
-                    name_to_id[a.lower()] = ce.canonical_id
-                for m in ce.source_mentions:
-                    name_to_id[m.lower()] = ce.canonical_id
+                cid = ce.canonical_id
+                name_to_id[cid] = cid
+
+                # Index slug suffix (e.g. "inc_402" and "entity:inc_402")
+                slug = cid.split(":")[-1]
+                name_to_id[slug] = cid
+                name_to_id[f"entity:{slug}"] = cid
+
+                # Index canonical name, aliases, mentions and normalized variations
+                variants = [ce.canonical_name] + ce.aliases + ce.source_mentions
+                for v in variants:
+                    v_low = v.strip().lower()
+                    name_to_id[v_low] = cid
+                    v_space = re.sub(r"[^a-z0-9]+", " ", v_low).strip()
+                    v_under = re.sub(r"[^a-z0-9]+", "_", v_low).strip("_")
+                    name_to_id[v_space] = cid
+                    name_to_id[v_under] = cid
+                    name_to_id[f"entity:{v_under}"] = cid
 
         resolved_rels: dict[str, Relationship] = {}
 
