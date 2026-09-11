@@ -1,9 +1,10 @@
 """Embedding service supporting OpenAI text-embedding models with deterministic offline fallback."""
 
+from __future__ import annotations
+
 import hashlib
 import logging
 import re
-from typing import Protocol, runtime_checkable
 import numpy as np
 
 from app.config import get_settings
@@ -11,28 +12,8 @@ from app.config import get_settings
 logger = logging.getLogger(__name__)
 
 
-@runtime_checkable
-class EmbeddingService(Protocol):
-    """Interface for text embedding providers."""
-
-    dimension: int
-
-    def embed_text(self, text: str) -> list[float]:
-        """Generate a dense vector embedding for a single text string."""
-        ...
-
-    def embed_batch(self, texts: list[str]) -> list[list[float]]:
-        """Generate dense vector embeddings for a batch of text strings."""
-        ...
-
-
-class DefaultEmbeddingService:
-    """Production embedding service with automatic offline fallback.
-    
-    When `openai_api_key` is configured, utilizes OpenAI's embedding API.
-    When offline or without an API key, utilizes a deterministic feature-hashing
-    dense projection with L2 unit normalization, ensuring zero external dependencies.
-    """
+class EmbeddingService:
+    """Generates text embeddings using OpenAI or a deterministic offline fallback."""
 
     def __init__(
         self,
@@ -50,9 +31,8 @@ class DefaultEmbeddingService:
             try:
                 from openai import OpenAI
                 self._client = OpenAI(api_key=self.api_key)
-                logger.info(f"OpenAI embedding client initialized with model '{self.model}'.")
             except Exception as e:
-                logger.warning(f"Failed to initialize OpenAI client: {e}. Falling back to offline embeddings.")
+                logger.warning(f"Failed to initialize OpenAI client: {e}. Using offline embeddings.")
                 self._client = None
 
     def embed_text(self, text: str) -> list[float]:
@@ -66,50 +46,42 @@ class DefaultEmbeddingService:
 
         if self._client:
             try:
-                response = self._client.embeddings.create(
-                    input=texts,
-                    model=self.model,
-                )
-                return [data.embedding for data in response.data]
+                response = self._client.embeddings.create(input=texts, model=self.model)
+                return [d.embedding for d in response.data]
             except Exception as e:
-                logger.warning(f"OpenAI embedding API call failed: {e}. Falling back to deterministic embeddings.")
+                logger.warning(f"OpenAI error: {e}. Using offline embeddings.")
 
         return [self._deterministic_dense_vector(t) for t in texts]
 
     def _deterministic_dense_vector(self, text: str) -> list[float]:
-        """Generate a deterministic pseudo-semantic dense vector using feature hashing.
-        
-        Extracts words and character n-grams, projects them via hashing into a vector of
-        length `self.dimension`, and normalizes with L2 norm to guarantee cosine compatibility.
-        """
-        if not text or not text.strip():
+        """Simple word-hashing vectorizer fallback when offline."""
+        if not text.strip():
             vec = np.zeros(self.dimension, dtype=np.float32)
             vec[0] = 1.0
             return vec.tolist()
 
         vec = np.zeros(self.dimension, dtype=np.float32)
-        clean = text.lower()
-        words = re.findall(r"\b\w+\b", clean)
+        words = re.findall(r"\b\w+\b", text.lower())
 
-        # 1. Word token projections
+        # 1. Project words into vector buckets
         for word in words:
-            h = hashlib.sha256(word.encode("utf-8")).digest()
-            idx = int.from_bytes(h[:4], "big") % self.dimension
-            sign = 1.0 if h[4] % 2 == 0 else -1.0
-            weight = 2.0 if any(c.isupper() for c in word) or len(word) > 5 else 1.0
+            h = int(hashlib.md5(word.encode("utf-8")).hexdigest(), 16)
+            idx = h % self.dimension
+            sign = 1.0 if (h & 1) == 0 else -1.0
+            weight = 2.0 if len(word) > 5 else 1.0
             vec[idx] += sign * weight
 
-        # 2. Character 3-gram projections for subword robustness
+        # 2. Add character 3-grams for subword similarity
+        clean = text.lower()
         for i in range(len(clean) - 2):
-            ngram = clean[i : i + 3]
-            h = hashlib.sha256(ngram.encode("utf-8")).digest()
-            idx = int.from_bytes(h[:4], "big") % self.dimension
-            sign = 1.0 if h[4] % 2 == 0 else -1.0
+            h = int(hashlib.md5(clean[i : i + 3].encode("utf-8")).hexdigest(), 16)
+            idx = h % self.dimension
+            sign = 1.0 if (h & 1) == 0 else -1.0
             vec[idx] += sign * 0.35
 
-        # 3. L2 Normalization
+        # 3. Normalize by L2 length so cosine similarity is just the dot product
         norm = float(np.linalg.norm(vec))
-        if norm > 1e-12:
+        if norm > 0:
             vec = vec / norm
         else:
             vec[0] = 1.0
@@ -117,12 +89,14 @@ class DefaultEmbeddingService:
         return vec.tolist()
 
 
+DefaultEmbeddingService = EmbeddingService
+
 _embedding_service_instance: EmbeddingService | None = None
 
 
 def get_embedding_service(force_new: bool = False) -> EmbeddingService:
-    """Singleton factory for obtaining the application's EmbeddingService."""
+    """Factory to get the global singleton EmbeddingService instance."""
     global _embedding_service_instance
     if _embedding_service_instance is None or force_new:
-        _embedding_service_instance = DefaultEmbeddingService()
+        _embedding_service_instance = EmbeddingService()
     return _embedding_service_instance

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any
 import uuid
 from qdrant_client import QdrantClient
 from qdrant_client.models import (
@@ -25,44 +25,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-@runtime_checkable
-class VectorStore(Protocol):
-    """Protocol defining the storage and similarity search contract."""
-
-    collection_name: str
-    dimension: int
-
-    def upsert_chunks(
-        self,
-        chunks: list[DocumentChunk],
-        embeddings: list[list[float]] | None = None,
-    ) -> int:
-        """Store or update document chunks with their dense vector embeddings."""
-        ...
-
-    def search(
-        self,
-        query_vector: list[float],
-        top_k: int = 5,
-        filters: dict[str, Any] | None = None,
-    ) -> list[RetrievedChunk]:
-        """Perform dense semantic similarity search against the vector index."""
-        ...
-
-    def count(self) -> int:
-        """Return the number of points in the vector store."""
-        ...
-
-    def clear(self) -> None:
-        """Empty or reset the vector store collection."""
-        ...
-
-
 class QdrantVectorStore:
-    """Qdrant-backed vector storage implementation.
-    
-    Operates seamlessly in in-memory mode (`:memory:`) or connects to remote Qdrant instances.
-    """
+    """Manages chunk embeddings in Qdrant (in-memory or remote server)."""
 
     def __init__(
         self,
@@ -81,49 +45,35 @@ class QdrantVectorStore:
         if client is not None:
             self.client = client
         elif use_in_mem:
-            logger.info(f"Initializing in-memory Qdrant instance for collection '{self.collection_name}'.")
             self.client = QdrantClient(":memory:")
         else:
             try:
-                logger.info(f"Connecting to Qdrant server at {settings.qdrant_url}...")
                 self.client = QdrantClient(
                     url=settings.qdrant_url,
                     api_key=settings.qdrant_api_key or None,
                     timeout=3.0,
                 )
-                # Probe connection
                 self.client.get_collections()
             except Exception as e:
-                logger.warning(
-                    f"Could not connect to Qdrant at {settings.qdrant_url}: {e}. "
-                    "Falling back to in-memory Qdrant client."
-                )
+                logger.warning(f"Could not connect to Qdrant ({e}). Using in-memory client.")
                 self.client = QdrantClient(":memory:")
 
         self._ensure_collection()
 
     def _ensure_collection(self) -> None:
-        """Create the target collection with cosine distance if it doesn't already exist."""
-        try:
-            exists = self.client.collection_exists(self.collection_name)
-            if not exists:
-                self.client.create_collection(
-                    collection_name=self.collection_name,
-                    vectors_config=VectorParams(size=self.dimension, distance=Distance.COSINE),
-                )
-                logger.info(
-                    f"Created Qdrant collection '{self.collection_name}' (dim={self.dimension}, metric=COSINE)."
-                )
-        except Exception as e:
-            logger.error(f"Error checking or creating collection '{self.collection_name}': {e}")
-            raise
+        """Create Qdrant collection if it doesn't already exist."""
+        if not self.client.collection_exists(self.collection_name):
+            self.client.create_collection(
+                collection_name=self.collection_name,
+                vectors_config=VectorParams(size=self.dimension, distance=Distance.COSINE),
+            )
 
     def upsert_chunks(
         self,
         chunks: list[DocumentChunk],
         embeddings: list[list[float]] | None = None,
     ) -> int:
-        """Idempotently insert or update document chunks with their dense embeddings."""
+        """Save chunks and their vector embeddings into Qdrant."""
         if not chunks:
             return 0
 
@@ -131,17 +81,11 @@ class QdrantVectorStore:
             texts = [c.text for c in chunks]
             embeddings = self.embedding_service.embed_batch(texts)
 
-        if len(chunks) != len(embeddings):
-            raise ValueError(
-                f"Mismatch between number of chunks ({len(chunks)}) and embeddings ({len(embeddings)})"
-            )
-
         points: list[PointStruct] = []
         for chunk, vector in zip(chunks, embeddings):
-            # Deterministic UUID5 for idempotent updates
+            # Deterministic UUID from chunk_id
             point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, chunk.chunk_id))
-            
-            # Extract metadata safely
+
             meta_dict: dict[str, Any] = {}
             if hasattr(chunk, "metadata"):
                 if hasattr(chunk.metadata, "model_dump"):
@@ -149,7 +93,7 @@ class QdrantVectorStore:
                 elif isinstance(chunk.metadata, dict):
                     meta_dict = chunk.metadata
 
-            payload: dict[str, Any] = {
+            payload = {
                 "chunk_id": chunk.chunk_id,
                 "document_id": chunk.document_id,
                 "text": chunk.text,
@@ -165,7 +109,6 @@ class QdrantVectorStore:
             points.append(PointStruct(id=point_id, vector=vector, payload=payload))
 
         self.client.upsert(collection_name=self.collection_name, points=points)
-        logger.info(f"Upserted {len(points)} points into Qdrant collection '{self.collection_name}'.")
         return len(points)
 
     def search(
@@ -174,7 +117,7 @@ class QdrantVectorStore:
         top_k: int = 5,
         filters: dict[str, Any] | None = None,
     ) -> list[RetrievedChunk]:
-        """Perform dense semantic search and return structured RetrievedChunk models."""
+        """Search Qdrant for the most similar chunks."""
         query_filter = None
         if filters:
             conditions = []
@@ -191,10 +134,10 @@ class QdrantVectorStore:
             query_filter=query_filter,
         )
 
-        retrieved: list[RetrievedChunk] = []
+        results: list[RetrievedChunk] = []
         for rank_idx, point in enumerate(res.points):
             payload = point.payload or {}
-            retrieved.append(
+            results.append(
                 RetrievedChunk(
                     chunk_id=payload.get("chunk_id", str(point.id)),
                     document_id=payload.get("document_id", ""),
@@ -204,35 +147,33 @@ class QdrantVectorStore:
                     metadata=payload,
                 )
             )
-
-        return retrieved
+        return results
 
     def count(self) -> int:
-        """Return the number of points in the collection."""
         try:
             return self.client.count(collection_name=self.collection_name).count
         except Exception:
             return 0
 
     def clear(self) -> None:
-        """Clear all points from the collection."""
         try:
             if self.client.collection_exists(self.collection_name):
                 self.client.delete_collection(self.collection_name)
             self._ensure_collection()
         except Exception as e:
-            logger.warning(f"Error clearing collection '{self.collection_name}': {e}")
+            logger.warning(f"Error clearing collection: {e}")
 
 
-_vector_store_instance: VectorStore | None = None
+VectorStore = QdrantVectorStore
+
+_vector_store_instance: QdrantVectorStore | None = None
 
 
 def get_vector_store(
     force_new: bool = False,
     in_memory: bool | None = None,
     collection_name: str | None = None,
-) -> VectorStore:
-    """Singleton factory for obtaining the application's VectorStore."""
+) -> QdrantVectorStore:
     global _vector_store_instance
     if _vector_store_instance is None or force_new or in_memory is not None or collection_name is not None:
         store = QdrantVectorStore(in_memory=in_memory, collection_name=collection_name)

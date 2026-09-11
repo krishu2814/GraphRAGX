@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 class VectorRetriever:
-    """Semantic retriever executing dense vector similarity search over document chunks."""
+    """Finds relevant document chunks by comparing query vectors against stored chunk vectors."""
 
     def __init__(
         self,
@@ -33,26 +33,14 @@ class VectorRetriever:
         access_tier: str | None = None,
         extra_filters: dict[str, Any] | None = None,
     ) -> list[RetrievedChunk]:
-        """Perform semantic similarity retrieval for the given natural language query.
-        
-        Args:
-            query: Natural language query string.
-            top_k: Maximum number of chunks to return (defaults to configured top_k_chunks).
-            document_id: Optional filter constraining search to a specific document.
-            access_tier: Optional security access tier filter.
-            extra_filters: Additional arbitrary metadata filter key-value pairs.
-
-        Returns:
-            List of ranked RetrievedChunk models sorted by descending similarity score.
-        """
+        """Perform semantic similarity search for a user query."""
         clean_query = query.strip()
         if not clean_query:
-            logger.warning("Empty query passed to VectorRetriever; returning empty results.")
             return []
 
         limit = top_k if top_k is not None else self.default_top_k
 
-        # Construct filters
+        # Set up filters (e.g. document_id or access_tier)
         filters: dict[str, Any] = {}
         if document_id:
             filters["document_id"] = document_id
@@ -61,17 +49,14 @@ class VectorRetriever:
         if extra_filters:
             filters.update(extra_filters)
 
-        # Generate query vector
+        # 1. Turn query text into an embedding vector
         query_vector = self.embedding_service.embed_text(clean_query)
 
-        # Query vector store
+        # 2. Search Qdrant for nearest neighbor chunks
         chunks = self.vector_store.search(
             query_vector=query_vector,
             top_k=limit,
             filters=filters if filters else None,
         )
 
-        logger.info(
-            f"VectorRetriever retrieved {len(chunks)} chunks for query: '{clean_query[:50]}...'"
-        )
         return chunks
