@@ -24,15 +24,25 @@ def main() -> None:
         action="store_true",
         help="Enable OpenAI LLM for extraction (default: false, uses deterministic rules)",
     )
+    parser.add_argument(
+        "--no-vectors",
+        action="store_true",
+        help="Skip dense vector indexing in Qdrant",
+    )
     args = parser.parse_args()
 
     print("==================================================")
     print(" GraphRAGX — End-to-End Knowledge Ingestion")
     print("==================================================")
     print(f"Source Directory: {args.data_dir}")
-    print(f"Extraction Mode : {'OpenAI LLM' if args.use_llm else 'Deterministic Rule-Based'}\n")
+    print(f"Extraction Mode : {'OpenAI LLM' if args.use_llm else 'Deterministic Rule-Based'}")
+    print(f"Vector Indexing : {'Disabled' if args.no_vectors else 'Enabled'}\n")
 
-    pipeline = IngestionPipeline(data_dir=args.data_dir, use_llm=args.use_llm)
+    pipeline = IngestionPipeline(
+        data_dir=args.data_dir,
+        use_llm=args.use_llm,
+        index_vectors=not args.no_vectors,
+    )
     summary = pipeline.run()
 
     print("\n--------------------------------------------------")
@@ -40,6 +50,7 @@ def main() -> None:
     print("--------------------------------------------------")
     print(f"  Documents Processed       : {summary.documents_loaded}")
     print(f"  Semantic Chunks Created   : {summary.chunks_created}")
+    print(f"  Vector Points Indexed     : {summary.vector_points_indexed}")
     print(f"  Raw Entities Extracted    : {summary.entities_extracted}")
     print(f"  Canonical Entities Formed : {summary.canonical_entities_count}")
     print(f"  Raw Relations Extracted   : {summary.raw_relationships_extracted}")
