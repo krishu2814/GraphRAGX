@@ -4,7 +4,7 @@ from app.models.entities import CanonicalEntity, Entity, EntityType
 from app.models.query import LinkedEntity, QueryIntent, RetrievalPlan, RetrievalStrategy
 from app.models.relationships import Evidence, Relationship, RelationType
 from app.models.responses import Citation, ComparisonResult, QueryResponse
-from app.models.retrieval import CommunitySummary, FusionResult, GraphFact, RetrievalPath, RetrievedChunk
+from app.models.retrieval import CommunitySummary, FusionResult, GraphFact, MultiHopResult, RetrievalPath, RetrievedChunk
 
 __all__ = [
     "EntityType",
@@ -16,6 +16,7 @@ __all__ = [
     "RetrievedChunk",
     "GraphFact",
     "RetrievalPath",
+    "MultiHopResult",
     "CommunitySummary",
     "FusionResult",
     "QueryIntent",

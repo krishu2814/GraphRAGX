@@ -89,6 +89,16 @@ RETURN s.id AS source_id,
 LIMIT $limit
 """
 
+GET_CHUNK_BY_ID = """
+MATCH (c:Chunk {id: $id})
+RETURN c.id AS id,
+       c.document_id AS document_id,
+       c.text AS text,
+       c.section_title AS section_title,
+       c.section_path AS section_path,
+       c.index AS index
+"""
+
 GET_GRAPH_STATS = """
 CALL {
     MATCH (e:Entity) RETURN count(e) AS entity_count
@@ -104,3 +114,4 @@ CALL {
 }
 RETURN entity_count, document_count, chunk_count, relationship_count
 """
+

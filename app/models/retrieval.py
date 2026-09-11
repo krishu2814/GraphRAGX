@@ -77,3 +77,13 @@ class FusionResult(BaseModel):
     final_score: float = Field(default=0.0, description="Final weighted combined score")
     contributing_paths: list[RetrievalPath] = Field(default_factory=list, description="Graph paths that supported this chunk")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional context metadata")
+
+
+class MultiHopResult(BaseModel):
+    """Result of multi-hop graph traversal starting from a seed entity."""
+
+    seed_entity: str = Field(..., description="Query or seed entity used to begin traversal")
+    paths: list[RetrievalPath] = Field(default_factory=list, description="Discovered relational paths")
+    facts: list[GraphFact] = Field(default_factory=list, description="Unique relational facts discovered along paths")
+    evidence_chunks: list[RetrievedChunk] = Field(default_factory=list, description="Grounded source text chunks validating paths")
+

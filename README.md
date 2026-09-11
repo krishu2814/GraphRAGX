@@ -4,7 +4,7 @@ Enterprise-grade Hybrid Knowledge Graph and Vector RAG system designed for compl
 
 ---
 
-## Project Status: Lesson 7 Completed
+## Project Status: Lesson 8 Completed
 
 The project is built incrementally across 16 focused lessons for clean git history and progress tracking. Comprehensive documentation for each lesson is stored in the [`docs/`](docs/) directory.
 
@@ -16,7 +16,7 @@ The project is built incrementally across 16 focused lessons for clean git histo
 - [x] [**Lesson 5: Dual Graph Storage Engine (Neo4j + In-Memory NetworkX)**](docs/lessons/05_dual_graph_storage_engine.md)
 - [x] [**Lesson 6: Graph Builder & Idempotent Ingestion Pipeline**](docs/lessons/06_graph_builder_ingestion_pipeline.md)
 - [x] [**Lesson 7: Vector Storage & Dense Semantic Retrieval**](docs/lessons/07_vector_storage_semantic_retrieval.md)
-- [ ] **Lesson 8: Graph Traversal & Multi-Hop Path Retrieval**
+- [x] [**Lesson 8: Graph Traversal & Multi-Hop Path Retrieval**](docs/lessons/08_graph_traversal_multihop_retrieval.md)
 - [ ] **Lesson 9: Query Understanding, Intent Classification & Entity Linking**
 - [ ] **Lesson 10: Community Detection & Global GraphRAG**
 - [ ] **Lesson 11: Hybrid Fusion (RRF) & Graph-Aware Reranker**
@@ -49,15 +49,17 @@ GraphRAGX/
 │   │   ├── entity_resolution.py  # Canonicalization & alias deduplication
 │   │   ├── graph_builder.py   # Idempotent GraphBuilder
 │   │   └── pipeline.py        # IngestionPipeline coordinator
-│   ├── graph/                 # Dual Graph Storage Engine
+│   ├── graph/                 # Dual Graph Storage & Traversal Engine
 │   │   ├── schema.py          # Labels, constraints, and indexes
 │   │   ├── cypher_queries.py  # Parameterized Cypher catalog
-│   │   └── neo4j_client.py    # GraphClient protocol, NetworkX & Neo4j drivers
+│   │   ├── neo4j_client.py    # GraphClient protocol, NetworkX & Neo4j drivers
+│   │   └── traversal.py       # BFS multi-hop path exploration & fact discovery
 │   ├── vector/                # Dense Vector Storage Engine
 │   │   ├── embeddings.py      # EmbeddingService (OpenAI & offline hashing fallback)
 │   │   └── vector_store.py    # QdrantVectorStore (:memory: & remote Qdrant)
 │   └── retrieval/             # Information Retrieval Subsystem
-│       └── vector_retriever.py # Semantic similarity search & metadata filtering
+│       ├── vector_retriever.py    # Semantic similarity search & metadata filtering
+│       └── multi_hop_retriever.py # Multi-hop path retrieval & grounded chunk resolution
 ├── data/
 │   └── documents/             # 20 interconnected enterprise markdown documents
 ├── docs/                      # Technical documentation
@@ -68,17 +70,20 @@ GraphRAGX/
 │       ├── 04_knowledge_extraction_entities_relations.md
 │       ├── 05_dual_graph_storage_engine.md
 │       ├── 06_graph_builder_ingestion_pipeline.md
-│       └── 07_vector_storage_semantic_retrieval.md
+│       ├── 07_vector_storage_semantic_retrieval.md
+│       └── 08_graph_traversal_multihop_retrieval.md
 ├── scripts/
 │   ├── build_graph.py         # Schema initialization CLI
 │   ├── ingest.py              # End-to-end ingestion runner CLI (graph + vectors)
-│   └── search_vector.py       # Dense semantic retrieval inspection CLI
+│   ├── search_vector.py       # Dense semantic retrieval inspection CLI
+│   └── traverse_graph.py      # Multi-hop graph traversal & path inspection CLI
 ├── tests/
 │   ├── test_config_and_models.py # Unit tests (11 tests)
 │   ├── test_documents.py         # Corpus validation tests (3 tests)
 │   ├── test_chunking.py          # Loader & chunker tests (8 tests)
 │   ├── test_extraction_and_resolution.py # Extractor & resolver tests (5 tests)
 │   ├── test_graph_engine.py      # Dual graph driver tests (9 tests)
+│   ├── test_graph_traversal.py   # Traversal & multi-hop tests (10 tests)
 │   ├── test_ingestion_pipeline.py # Pipeline integration tests (2 tests)
 │   └── test_vector_retrieval.py  # Vector store & retriever tests (13 tests)
 ├── .env.example               # Environment variables template
@@ -107,9 +112,15 @@ python scripts/ingest.py --data-dir data/documents
 python scripts/search_vector.py --query "OAuth 2.1 breaking changes" --top-k 3
 ```
 
-### 4. Run Verification Tests (51 Tests)
+### 4. Run Multi-Hop Graph Traversal CLI
+```bash
+python scripts/traverse_graph.py --entity "Acme Corp" --max-hops 2
+```
+
+### 5. Run Verification Tests (61 Tests)
 ```bash
 pytest tests/ -v
 ```
 
 See [docs/lessons/](docs/lessons/) for technical deep-dives into each milestone.
+

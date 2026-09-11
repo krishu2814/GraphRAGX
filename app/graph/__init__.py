@@ -1,6 +1,7 @@
 """Graph database drivers, Cypher query catalog, and schema management."""
 
 from app.graph.cypher_queries import (
+    GET_CHUNK_BY_ID,
     GET_ENTITY_BY_ID,
     GET_ENTITY_BY_NAME,
     GET_GRAPH_STATS,
@@ -22,11 +23,14 @@ from app.graph.schema import (
     get_schema_initialization_queries,
 )
 
+from app.graph.traversal import GraphTraverser
+
 __all__ = [
     "GraphClient",
     "Neo4jGraphDriver",
     "NetworkXGraphDriver",
     "get_graph_client",
+    "GraphTraverser",
     "NODE_LABEL_ENTITY",
     "NODE_LABEL_DOCUMENT",
     "NODE_LABEL_CHUNK",
@@ -35,6 +39,7 @@ __all__ = [
     "get_schema_initialization_queries",
     "GET_ENTITY_BY_ID",
     "GET_ENTITY_BY_NAME",
+    "GET_CHUNK_BY_ID",
     "GET_NEIGHBORS_1HOP",
     "GET_GRAPH_STATS",
     "build_merge_relationship_query",

@@ -8,6 +8,7 @@ import networkx as nx
 
 from app.config import get_settings
 from app.graph.cypher_queries import (
+    GET_CHUNK_BY_ID,
     GET_ENTITY_BY_ID,
     GET_ENTITY_BY_NAME,
     GET_GRAPH_STATS,
@@ -62,6 +63,11 @@ class GraphClient(ABC):
     @abstractmethod
     def get_entity(self, identifier: str) -> dict[str, Any] | None:
         """Fetch an entity node by its ID or exact/alias name."""
+        pass
+
+    @abstractmethod
+    def get_chunk(self, chunk_id: str) -> dict[str, Any] | None:
+        """Fetch a chunk node by its ID."""
         pass
 
     @abstractmethod
@@ -189,6 +195,11 @@ class NetworkXGraphDriver(GraphClient):
         if lookup_id and lookup_id in self.graph:
             return dict(self.graph.nodes[lookup_id])
 
+        return None
+
+    def get_chunk(self, chunk_id: str) -> dict[str, Any] | None:
+        if chunk_id in self.graph and self.graph.nodes[chunk_id].get("label") == "Chunk":
+            return dict(self.graph.nodes[chunk_id])
         return None
 
     def get_neighbors(self, entity_id: str, limit: int = 50) -> list[dict[str, Any]]:
@@ -345,6 +356,14 @@ class Neo4jGraphDriver(GraphClient):
             record_name = res_name.single()
             if record_name:
                 return dict(record_name)
+        return None
+
+    def get_chunk(self, chunk_id: str) -> dict[str, Any] | None:
+        with self.driver.session(database=self.database) as session:
+            res = session.run(GET_CHUNK_BY_ID, id=chunk_id)
+            record = res.single()
+            if record:
+                return dict(record)
         return None
 
     def get_neighbors(self, entity_id: str, limit: int = 50) -> list[dict[str, Any]]:
