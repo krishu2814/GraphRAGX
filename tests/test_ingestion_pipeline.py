@@ -86,6 +86,45 @@ class TestGraphBuilder:
         assert client.graph.has_edge("chunk_test_001", "entity:customer:acme", key="MENTIONS")
         assert client.graph.has_edge("chunk_test_001", "entity:product:nova", key="MENTIONS")
 
+    def test_mentions_linking_word_boundaries(self, client: NetworkXGraphDriver):
+        builder = GraphBuilder(client)
+        meta = ChunkMetadata(
+            document_id="doc_boundary_test",
+            title="Boundary Test",
+            department="Engineering",
+            access_tier=AccessTier.INTERNAL,
+            version="1.0",
+        )
+        chunk = DocumentChunk(
+            chunk_id="chunk_boundary_001",
+            document_id="doc_boundary_test",
+            text="We completed the office renovation and improved our build process.",
+            index=1,
+            metadata=meta,
+        )
+        entity_nova = CanonicalEntity(
+            canonical_id="entity:product:nova",
+            canonical_name="Product Nova",
+            primary_type=EntityType.PRODUCT,
+            aliases=["Nova"],
+        )
+        entity_pro = CanonicalEntity(
+            canonical_id="entity:plan:pro",
+            canonical_name="Pro Tier",
+            primary_type=EntityType.PLAN,
+            aliases=["Pro"],
+        )
+
+        builder.populate(
+            chunks=[chunk],
+            entities=[entity_nova, entity_pro],
+            relationships=[],
+        )
+
+        # Neither 'Nova' (in renovation) nor 'Pro' (in process) should be linked
+        assert not client.graph.has_edge("chunk_boundary_001", "entity:product:nova", key="MENTIONS")
+        assert not client.graph.has_edge("chunk_boundary_001", "entity:plan:pro", key="MENTIONS")
+
 
 class TestIngestionPipeline:
     """Integration test suite executing full pipeline on the enterprise documents corpus."""

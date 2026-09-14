@@ -1,6 +1,7 @@
 """Graph builder module responsible for idempotent population of nodes and relationships into the graph store."""
 
 import logging
+import re
 from typing import Any
 
 from app.graph.neo4j_client import GraphClient
@@ -74,14 +75,18 @@ class GraphBuilder:
 
         # 4. Link (Chunk)-[:MENTIONS]->(Entity)
         logger.info("Linking chunks to mentioned entities...")
+        entity_patterns: list[tuple[CanonicalEntity, re.Pattern]] = []
+        for entity in entities:
+            names = [entity.canonical_name] + entity.aliases
+            names = sorted(set(n for n in names if n), key=len, reverse=True)
+            escaped = "|".join(re.escape(n) for n in names)
+            if escaped:
+                pat = re.compile(r"(?<![a-zA-Z0-9])(?:" + escaped + r")(?![a-zA-Z0-9])", re.IGNORECASE)
+                entity_patterns.append((entity, pat))
+
         for chunk in chunks:
-            chunk_lower = chunk.text.lower()
-            for entity in entities:
-                # Check if entity canonical name or any alias appears in chunk
-                is_mentioned = entity.canonical_name.lower() in chunk_lower or any(
-                    alias.lower() in chunk_lower for alias in entity.aliases
-                )
-                if is_mentioned:
+            for entity, pat in entity_patterns:
+                if pat.search(chunk.text):
                     self.client.link_chunk_to_entity(chunk.chunk_id, entity.canonical_id)
 
         # 5. Insert Relationship edges with Evidence

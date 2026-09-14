@@ -214,7 +214,7 @@ class IntentClassifier:
                 f"Return ONLY the intent name in all caps."
             )
             response = client.chat.completions.create(
-                model=self.settings.openai_model,
+                model=self.settings.llm_model,
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.0,
                 max_tokens=20,

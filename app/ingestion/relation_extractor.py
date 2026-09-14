@@ -114,14 +114,15 @@ class RelationExtractor:
         # Compile relationship predicate cue mappings
         predicate_cues: list[tuple[re.Pattern, RelationType, str]] = [
             (re.compile(r"\b(relies\s+on|depends\s+on|delegates\s+(?:all\s+)?(?:user\s+)?authentication\s+to|requires)\b", re.IGNORECASE), RelationType.DEPENDS_ON, "relies on for operational capabilities"),
-            (re.compile(r"\b(uses|utilizes|relies\s+on|powers|subscribed\s+to|operates)\b", re.IGNORECASE), RelationType.USES, "uses or consumes service/product"),
+            (re.compile(r"\b(uses|utilizes|powers|subscribed\s+to|operates|contracts?\s+for)\b", re.IGNORECASE), RelationType.USES, "uses or consumes service/product"),
             (re.compile(r"\b(affects|impacts|breaks|deprecated|replaces)\b", re.IGNORECASE), RelationType.AFFECTS, "adversely affects or changes interface of"),
-            (re.compile(r"\b(introduced\s+in|released\s+in|transitioned\s+in|rolled\s+out\s+in)\b", re.IGNORECASE), RelationType.INTRODUCED_IN, "introduced or launched in release"),
-            (re.compile(r"\b(supports|provides|features|offers)\b", re.IGNORECASE), RelationType.SUPPORTS, "provides or supports capability for"),
+            (re.compile(r"\b(introduced\s+in|released\s+in|transitioned\s+(?:in|to)|rolled\s+out\s+in|upgraded\s+to)\b", re.IGNORECASE), RelationType.INTRODUCED_IN, "introduced or launched in release"),
+            (re.compile(r"\b(supports|provides|features|offers|enforces|implements)\b", re.IGNORECASE), RelationType.SUPPORTS, "provides or supports capability for"),
             (re.compile(r"\b(deployed\s+(?:on|in)|hosted\s+(?:on|in)|runs\s+on)\b", re.IGNORECASE), RelationType.DEPLOYS_TO, "deploys onto infrastructure environment"),
             (re.compile(r"\b(integrates\s+with|connects\s+to|exchanges\s+with|streams\s+into)\b", re.IGNORECASE), RelationType.INTEGRATES_WITH, "exchanges data or integrates with"),
             (re.compile(r"\b(complies\s+with|satisfies|certified\s+under|audited\s+under)\b", re.IGNORECASE), RelationType.COMPLIES_WITH, "complies with regulatory policy or certification"),
             (re.compile(r"\b(governed\s+by|evaluated\s+by|regulated\s+by|enforced\s+by)\b", re.IGNORECASE), RelationType.OWNED_BY, "governed or policy-enforced by"),
+            (re.compile(r"\b(part\s+of|component\s+of|subsystem\s+of|module\s+of)\b", re.IGNORECASE), RelationType.PART_OF, "part or component of"),
         ]
 
         # Check each sentence for entity co-occurrences
@@ -130,21 +131,69 @@ class RelationExtractor:
             if not sentence_clean:
                 continue
 
-            # Find entities present in this sentence
-            present_entities = [e for e in entities if e.name.lower() in sentence_clean.lower()]
-            if len(present_entities) < 2:
+            # Find entities present in this sentence using boundary matching
+            matches: list[tuple[Entity, int, int]] = []
+            for e in entities:
+                pattern = re.compile(r"(?<![a-zA-Z0-9])" + re.escape(e.name) + r"(?![a-zA-Z0-9])", re.IGNORECASE)
+                for m in pattern.finditer(sentence_clean):
+                    matches.append((e, m.start(), m.end()))
+
+            # Filter overlapping spans (prefer longer entity matches)
+            matches.sort(key=lambda x: (x[1], -(x[2] - x[1])))
+            filtered: list[tuple[Entity, int, int]] = []
+            last_end = -1
+            for e, start, end in matches:
+                if start >= last_end:
+                    filtered.append((e, start, end))
+                    last_end = end
+
+            if len(filtered) < 2:
                 continue
 
-            # Check entity pairs in order of appearance in sentence
-            for i in range(len(present_entities)):
-                for j in range(len(present_entities)):
-                    if i == j:
-                        continue
-                    src = present_entities[i]
-                    tgt = present_entities[j]
+            # Evaluate ordered entity pairs where src appears before tgt in the sentence
+            for i in range(len(filtered)):
+                for j in range(i + 1, len(filtered)):
+                    src, s_start, s_end = filtered[i]
+                    tgt, t_start, t_end = filtered[j]
 
-                    # Match semantic predicate between src and tgt
-                    rel_type, description = self._infer_relation_type(sentence_clean, src.name, tgt.name, predicate_cues)
+                    if src.name.lower() == tgt.name.lower():
+                        continue
+
+                    # If non-adjacent, ensure intermediate entity does not have its own predicate
+                    has_intermediate_predicate = False
+                    for k in range(i + 1, j):
+                        _, _, k_end = filtered[k]
+                        k_between = sentence_clean[k_end:t_start]
+                        if any(pat.search(k_between) for pat, _, _ in predicate_cues):
+                            has_intermediate_predicate = True
+                            break
+                    if has_intermediate_predicate:
+                        continue
+
+                    connecting_text = sentence_clean[s_end:t_start]
+                    rel_type: RelationType | None = None
+                    description = ""
+
+                    for pattern, r_type, desc in predicate_cues:
+                        if pattern.search(connecting_text):
+                            rel_type = r_type
+                            description = desc
+                            break
+
+                    if rel_type is None and j == i + 1:
+                        # Fallback only for adjacent co-occurring pairs
+                        if "customer" in src.name.lower() or "corp" in src.name.lower():
+                            rel_type = RelationType.USES
+                            description = "Customer utilizes target solution"
+                        elif "version" in tgt.name.lower():
+                            rel_type = RelationType.INTRODUCED_IN
+                            description = "Associated with software release"
+                        else:
+                            rel_type = RelationType.RELATED_TO
+                            description = "Relates to context in chunk"
+
+                    if rel_type is None:
+                        continue
 
                     pair_key = (src.name.lower(), tgt.name.lower(), rel_type.value)
                     if pair_key in seen_pairs:
@@ -173,20 +222,30 @@ class RelationExtractor:
     ) -> tuple[RelationType, str]:
         """Infer relation type from sentence cues and entity types."""
         # Find positions to evaluate directionality
-        src_pos = sentence.lower().find(src_name.lower())
-        tgt_pos = sentence.lower().find(tgt_name.lower())
+        src_m = re.search(r"(?<![a-zA-Z0-9])" + re.escape(src_name) + r"(?![a-zA-Z0-9])", sentence, re.IGNORECASE)
+        tgt_m = re.search(r"(?<![a-zA-Z0-9])" + re.escape(tgt_name) + r"(?![a-zA-Z0-9])", sentence, re.IGNORECASE)
 
-        # If source appears before target, check connecting text
-        connecting_text = sentence[src_pos:tgt_pos] if src_pos < tgt_pos else sentence[tgt_pos:src_pos]
+        src_pos = src_m.start() if src_m else sentence.lower().find(src_name.lower())
+        tgt_pos = tgt_m.start() if tgt_m else sentence.lower().find(tgt_name.lower())
+        src_end = src_m.end() if src_m else (src_pos + len(src_name))
+        tgt_end = tgt_m.end() if tgt_m else (tgt_pos + len(tgt_name))
 
-        for pattern, r_type, desc in cues:
-            if pattern.search(connecting_text) or pattern.search(sentence):
-                return r_type, desc
+        # Check connecting text between source and target
+        if src_pos < tgt_pos:
+            connecting_text = sentence[src_end:tgt_pos]
+            for pattern, r_type, desc in cues:
+                if pattern.search(connecting_text):
+                    return r_type, desc
+        elif tgt_pos < src_pos:
+            connecting_text = sentence[tgt_end:src_pos]
+            for pattern, r_type, desc in cues:
+                if pattern.search(connecting_text):
+                    return r_type, desc
 
         # Domain fallback defaults
         if "customer" in src_name.lower() or "corp" in src_name.lower():
             return RelationType.USES, "Customer utilizes target solution"
-        if "version" in src_name.lower():
+        if "version" in tgt_name.lower():
             return RelationType.INTRODUCED_IN, "Associated with software release"
 
         return RelationType.RELATED_TO, "Relates to context in chunk"

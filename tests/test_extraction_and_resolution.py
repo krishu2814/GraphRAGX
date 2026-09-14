@@ -96,6 +96,24 @@ class TestRelationExtractor:
         rel_types = {r.type for r in relations}
         assert RelationType.DEPENDS_ON in rel_types or RelationType.USES in rel_types
 
+    def test_directional_extraction_no_inverted_edges(self, sample_chunk):
+        extractor = RelationExtractor(use_llm_if_available=False)
+        relations = extractor.extract(sample_chunk)
+
+        pairs = {(r.source_id, r.type, r.target_id) for r in relations}
+        # Forward dependency must exist
+        assert ("entity:acme_corp", RelationType.DEPENDS_ON, "entity:product_nova") in pairs
+        # Inverted false dependency must NOT exist
+        assert ("entity:product_nova", RelationType.DEPENDS_ON, "entity:acme_corp") not in pairs
+        # Product Nova -> Identity Service must exist
+        assert ("entity:product_nova", RelationType.DEPENDS_ON, "entity:identity_service") in pairs
+        # Identity Service -> Product Nova must NOT exist
+        assert ("entity:identity_service", RelationType.DEPENDS_ON, "entity:product_nova") not in pairs
+        # Product Nova -> AWS must exist as DEPLOYS_TO
+        assert ("entity:product_nova", RelationType.DEPLOYS_TO, "entity:aws") in pairs
+        # AWS -> Product Nova must NOT exist
+        assert ("entity:aws", RelationType.DEPLOYS_TO, "entity:product_nova") not in pairs
+
 
 class TestEntityResolver:
     """Test suite for canonicalization, alias resolution, and edge re-mapping."""

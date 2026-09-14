@@ -26,7 +26,7 @@ class RetrievalPlanner:
     ]
 
     DEPARTMENTS = ["engineering", "security", "legal", "finance", "compliance", "product"]
-    ACCESS_TIERS = ["public", "internal", "confidential"]
+    ACCESS_TIERS = ["public", "internal", "confidential", "restricted"]
 
     def plan(
         self,
@@ -144,12 +144,16 @@ class RetrievalPlanner:
             filters["version"] = version_match.group(1)
 
         # Access Tier filter: require context like "confidential tier/documents" or "tier: confidential"
-        tier_pattern = r"\b(?:access\s+tier|tier|classification)?\s*[:=]?\s*(public|internal|confidential)\b"
-        tier_match = re.search(r"\b(public|internal|confidential)\s+(?:tier|access|classification|documents?|docs?)\b", q_lower)
+        tier_match = (
+            re.search(r"\b(?:access\s+tier|tier|classification)\s*[:=]?\s*(public|internal|confidential|restricted)\b", q_lower)
+            or re.search(r"\b(public|internal|confidential|restricted)\s+(?:tier|access|classification|documents?|docs?)\b", q_lower)
+        )
         if tier_match:
             filters["access_tier"] = tier_match.group(1).capitalize()
         elif "confidential" in q_lower:
             filters["access_tier"] = "Confidential"
+        elif "restricted" in q_lower:
+            filters["access_tier"] = "Restricted"
 
         # Department filter: require context like "in engineering", "security department", "legal team"
         dept_match = re.search(

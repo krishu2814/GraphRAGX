@@ -93,6 +93,9 @@ class QdrantVectorStore:
                 elif isinstance(chunk.metadata, dict):
                     meta_dict = chunk.metadata
 
+            tier = meta_dict.get("access_tier", "Internal")
+            access_tier_val = tier.value if hasattr(tier, "value") else str(tier)
+
             payload = {
                 "chunk_id": chunk.chunk_id,
                 "document_id": chunk.document_id,
@@ -100,9 +103,10 @@ class QdrantVectorStore:
                 "index": getattr(chunk, "index", 0),
                 "title": meta_dict.get("title", ""),
                 "department": meta_dict.get("department", "General"),
+                "version": str(meta_dict.get("version", "1.0")),
                 "section_title": meta_dict.get("section_title", ""),
                 "section_path": meta_dict.get("section_path", ""),
-                "access_tier": str(meta_dict.get("access_tier", "Internal")),
+                "access_tier": access_tier_val,
                 "entity_hints": meta_dict.get("entity_hints", []),
                 "metadata": meta_dict,
             }

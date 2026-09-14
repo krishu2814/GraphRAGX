@@ -60,7 +60,7 @@ def build_merge_relationship_query(rel_type: str) -> str:
         r.weight = $weight,
         r.evidence = $evidence,
         r.updated_at = timestamp()
-    RETURN id(r) AS rel_id
+    RETURN coalesce(elementId(r), toString(id(r))) AS rel_id
     """
 
 # Graph Inspection & Retrieval
@@ -78,7 +78,7 @@ LIMIT 1
 
 GET_NEIGHBORS_1HOP = """
 MATCH (n:Entity)
-WHERE n.id = $id OR toLower(n.name) = toLower($id)
+WHERE n.id = $id OR toLower(n.name) = toLower($id) OR toLower($id) IN [a IN n.aliases | toLower(a)]
 CALL {
     WITH n
     MATCH (n)-[r]->(t:Entity)

@@ -371,8 +371,11 @@ class Neo4jGraphDriver(GraphClient):
         return None
 
     def get_neighbors(self, entity_id: str, limit: int = 50) -> list[dict[str, Any]]:
+        # Resolve identifier first if name or alias passed
+        ent = self.get_entity(entity_id)
+        lookup_id = ent["id"] if ent else entity_id
         with self.driver.session(database=self.database) as session:
-            res = session.run(GET_NEIGHBORS_1HOP, id=entity_id, limit=limit)
+            res = session.run(GET_NEIGHBORS_1HOP, id=lookup_id, limit=limit)
             results: list[dict[str, Any]] = []
             for r in res:
                 item = dict(r)

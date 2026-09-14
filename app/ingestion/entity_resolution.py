@@ -149,6 +149,62 @@ class EntityResolver:
             "description": "General Data Protection Regulation governing EU data privacy and residency",
             "aliases": ["GDPR", "General Data Protection Regulation"],
         },
+        {
+            "canonical_id": "entity:organization:cloudscale",
+            "canonical_name": "CloudScale Systems",
+            "type": EntityType.ORGANIZATION,
+            "description": "Enterprise cloud intelligence and distributed data infrastructure provider",
+            "aliases": ["CloudScale Systems", "CloudScale", "CloudScale Corp"],
+        },
+        {
+            "canonical_id": "entity:technology:kafka",
+            "canonical_name": "Apache Kafka",
+            "type": EntityType.TECHNOLOGY,
+            "description": "Distributed streaming event bus backing Product Orion",
+            "aliases": ["Apache Kafka", "Kafka", "Kafka Cluster"],
+        },
+        {
+            "canonical_id": "entity:technology:arrow",
+            "canonical_name": "Apache Arrow",
+            "type": EntityType.TECHNOLOGY,
+            "description": "In-memory columnar data format used for Nova analytics caching",
+            "aliases": ["Apache Arrow", "Arrow", "Arrow Format"],
+        },
+        {
+            "canonical_id": "entity:technology:redis",
+            "canonical_name": "Redis",
+            "type": EntityType.TECHNOLOGY,
+            "description": "In-memory key-value cache used for session and token management",
+            "aliases": ["Redis", "Redis Cache"],
+        },
+        {
+            "canonical_id": "entity:technology:envoy",
+            "canonical_name": "Envoy Proxy",
+            "type": EntityType.TECHNOLOGY,
+            "description": "High-performance edge proxy underpinning Gateway Service",
+            "aliases": ["Envoy Proxy", "Envoy"],
+        },
+        {
+            "canonical_id": "entity:plan:developer",
+            "canonical_name": "Developer Plan",
+            "type": EntityType.PLAN,
+            "description": "Entry-level free tier for prototyping and individual developers",
+            "aliases": ["Developer Plan", "Free Tier", "Developer Tier", "Free Plan", "Starter Tier"],
+        },
+        {
+            "canonical_id": "entity:plan:pro",
+            "canonical_name": "Pro Plan",
+            "type": EntityType.PLAN,
+            "description": "Standard business plan with 99.9% SLA and dedicated support",
+            "aliases": ["Pro Plan", "Pro Tier", "Professional Plan", "Growth Tier"],
+        },
+        {
+            "canonical_id": "entity:plan:enterprise",
+            "canonical_name": "Enterprise Plan",
+            "type": EntityType.PLAN,
+            "description": "Mission-critical custom enterprise plan with 99.99% SLA and HIPAA/SOC2",
+            "aliases": ["Enterprise Plan", "Enterprise Tier", "Custom Tier"],
+        },
     ]
 
     def __init__(self) -> None:
@@ -156,8 +212,14 @@ class EntityResolver:
         self._build_alias_index()
 
     def _build_alias_index(self) -> None:
-        """Populate lookup index mapping lowercase alias strings to canonical clusters."""
+        """Populate lookup index mapping lowercase alias strings and IDs to canonical clusters."""
         for cluster in self.CANONICAL_CLUSTERS:
+            cid = cluster["canonical_id"].lower().strip()
+            self.alias_to_canonical_map[cid] = cluster
+            slug = cid.split(":")[-1]
+            self.alias_to_canonical_map[slug] = cluster
+            self.alias_to_canonical_map[f"entity:{slug}"] = cluster
+
             for alias in cluster["aliases"]:
                 self.alias_to_canonical_map[alias.lower().strip()] = cluster
             self.alias_to_canonical_map[cluster["canonical_name"].lower().strip()] = cluster
@@ -166,7 +228,7 @@ class EntityResolver:
         """Map an individual raw entity mention to its canonical representation."""
         raw_clean = raw_entity.name.strip().lower()
 
-        # 1. Exact alias lookup
+        # 1. Exact alias or ID lookup
         if raw_clean in self.alias_to_canonical_map:
             cluster = self.alias_to_canonical_map[raw_clean]
             return CanonicalEntity(
@@ -179,9 +241,13 @@ class EntityResolver:
                 metadata=raw_entity.metadata,
             )
 
-        # 2. Substring / Token containment matching
-        for alias_key, cluster in self.alias_to_canonical_map.items():
-            if alias_key == raw_clean or (len(alias_key) > 3 and alias_key in raw_clean):
+        # 2. Token boundary containment matching (longest match first)
+        for alias_key in sorted(self.alias_to_canonical_map.keys(), key=len, reverse=True):
+            if len(alias_key) < 3:
+                continue
+            pattern_str = r"(?<![a-zA-Z0-9])" + re.escape(alias_key) + r"(?![a-zA-Z0-9])"
+            if re.search(pattern_str, raw_clean):
+                cluster = self.alias_to_canonical_map[alias_key]
                 return CanonicalEntity(
                     canonical_id=cluster["canonical_id"],
                     canonical_name=cluster["canonical_name"],
@@ -238,6 +304,25 @@ class EntityResolver:
         """Re-map relationship endpoints to canonical entity IDs and merge duplicate edges."""
         # Create map from mention/alias/id to canonical ID
         name_to_id: dict[str, str] = {}
+
+        # 1. Pre-populate from known canonical clusters
+        for cluster in self.CANONICAL_CLUSTERS:
+            cid = cluster["canonical_id"]
+            name_to_id[cid] = cid
+            slug = cid.split(":")[-1]
+            name_to_id[slug] = cid
+            name_to_id[f"entity:{slug}"] = cid
+            variants = [cluster["canonical_name"]] + cluster.get("aliases", [])
+            for v in variants:
+                v_low = v.strip().lower()
+                name_to_id[v_low] = cid
+                v_space = re.sub(r"[^a-z0-9]+", " ", v_low).strip()
+                v_under = re.sub(r"[^a-z0-9]+", "_", v_low).strip("_")
+                name_to_id[v_space] = cid
+                name_to_id[v_under] = cid
+                name_to_id[f"entity:{v_under}"] = cid
+
+        # 2. Enrich with provided canonical entities
         if canonical_entities:
             for ce in canonical_entities:
                 cid = ce.canonical_id
@@ -266,15 +351,17 @@ class EntityResolver:
             clean_src = rel.source_id.replace("entity:", "").replace("_", " ").lower()
             clean_tgt = rel.target_id.replace("entity:", "").replace("_", " ").lower()
 
-            src_cid = name_to_id.get(rel.source_id) or name_to_id.get(clean_src) or self._fallback_cid(clean_src)
-            tgt_cid = name_to_id.get(rel.target_id) or name_to_id.get(clean_tgt) or self._fallback_cid(clean_tgt)
+            src_cid = name_to_id.get(rel.source_id) or name_to_id.get(clean_src) or self._fallback_cid(rel.source_id)
+            tgt_cid = name_to_id.get(rel.target_id) or name_to_id.get(clean_tgt) or self._fallback_cid(rel.target_id)
 
             # Avoid self-loops post-resolution
             if src_cid == tgt_cid:
                 continue
 
             rel_type = rel.type
-            canonical_rel_id = f"rel:{src_cid.replace('entity:', '')}:{rel_type.value.lower()}:{tgt_cid.replace('entity:', '')}"
+            src_key = src_cid.replace("entity:", "").replace(":", "_")
+            tgt_key = tgt_cid.replace("entity:", "").replace(":", "_")
+            canonical_rel_id = f"rel:{src_key}:{rel_type.value.lower()}:{tgt_key}"
 
             if canonical_rel_id in resolved_rels:
                 # Merge evidence
@@ -299,9 +386,13 @@ class EntityResolver:
 
     def _fallback_cid(self, name: str) -> str:
         """Construct fallback ID if not present in lookup."""
-        # Check if text matches any known cluster
         clean = name.strip().lower()
         if clean in self.alias_to_canonical_map:
             return self.alias_to_canonical_map[clean]["canonical_id"]
-        slug = re.sub(r"[^a-z0-9]+", "_", clean).strip("_")
+        # Strip entity: prefix and possible type prefix (e.g. entity:customer:acme_corp -> acme corp)
+        stripped = re.sub(r"^entity:(?:[a-z]+:)?", "", clean)
+        stripped_clean = stripped.replace("_", " ").strip()
+        if stripped_clean in self.alias_to_canonical_map:
+            return self.alias_to_canonical_map[stripped_clean]["canonical_id"]
+        slug = re.sub(r"[^a-z0-9]+", "_", stripped).strip("_")
         return f"entity:{slug}"
